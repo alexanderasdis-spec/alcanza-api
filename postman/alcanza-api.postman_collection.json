@@ -1,0 +1,48 @@
+{
+  "info": {
+    "name": "alcanza-api",
+    "description": "Colección para probar la API de Alcanza (Laravel + Sail en WSL, base data_alcanza). Usar con el environment 'alcanza-api local'. Cada petición verifica su código de respuesta: usa Run collection (o Newman) para probarlas todas en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health check (/up)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('Laravel responde 200', () => pm.response.to.have.status(200));"]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{host}}/up", "host": ["{{host}}"], "path": ["up"] },
+        "description": "Si responde 200, Laravel está levantado."
+      }
+    },
+    {
+      "name": "Usuario autenticado sin token (GET /api/user)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Sin token responde 401', () => pm.response.to.have.status(401));",
+              "pm.test('El error viene en JSON', () => pm.expect(pm.response.json()).to.have.property('message'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/user", "host": ["{{base_url}}"], "path": ["user"] },
+        "description": "Comprueba que las rutas de API existen y que los errores se responden en JSON."
+      }
+    }
+  ]
+}
