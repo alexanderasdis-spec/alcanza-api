@@ -1,48 +1,250 @@
 {
   "info": {
     "name": "alcanza-api",
-    "description": "Colección para probar la API de Alcanza (Laravel + Sail en WSL, base data_alcanza). Usar con el environment 'alcanza-api local'. Cada petición verifica su código de respuesta: usa Run collection (o Newman) para probarlas todas en orden.",
+    "description": "Colección para probar la API de Alcanza (Laravel + Sail en WSL, base data_alcanza). Usar con el environment 'alcanza-api local'. Las peticiones van en orden: crean el perfil, una meta, sus abonos hasta cumplirla y al final la eliminan. Cada una verifica su código de respuesta: usa Run collection (o Newman) para probarlas todas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    { "key": "perfil_id", "value": "" },
+    { "key": "meta_id", "value": "" }
+  ],
   "item": [
     {
-      "name": "Health check (/up)",
-      "event": [
+      "name": "0. Salud",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": ["pm.test('Laravel responde 200', () => pm.response.to.have.status(200));"]
+          "name": "Health check (/up)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Laravel responde 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{host}}/up", "host": ["{{host}}"], "path": ["up"] },
+            "description": "Si responde 200, Laravel está levantado."
+          }
+        },
+        {
+          "name": "Usuario autenticado sin token (GET /api/user)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Sin token responde 401', () => pm.response.to.have.status(401));",
+            "pm.test('El error viene en JSON', () => pm.expect(pm.response.json()).to.have.property('message'));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/user", "host": ["{{base_url}}"], "path": ["user"] }
           }
         }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }],
-        "url": { "raw": "{{host}}/up", "host": ["{{host}}"], "path": ["up"] },
-        "description": "Si responde 200, Laravel está levantado."
-      }
+      ]
     },
     {
-      "name": "Usuario autenticado sin token (GET /api/user)",
-      "event": [
+      "name": "1. Perfil",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Sin token responde 401', () => pm.response.to.have.status(401));",
-              "pm.test('El error viene en JSON', () => pm.expect(pm.response.json()).to.have.property('message'));"
-            ]
+          "name": "Guardar perfil inválido (POST /api/perfil) → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "const errores = pm.response.json().errors;",
+            "pm.test('Explica el error de nombre y de ahorro', () => pm.expect(errores).to.have.keys('nombre', 'ahorro_mensual'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"\",\n  \"ahorro_mensual\": 0\n}" },
+            "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
+          }
+        },
+        {
+          "name": "Guardar perfil (POST /api/perfil)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 201 (creado) o 200 (actualizado)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+            "const perfil = pm.response.json();",
+            "pm.test('Devuelve el perfil con número de ahorro', () => pm.expect(perfil.ahorro_mensual).to.eql(350000));",
+            "pm.collectionVariables.set('perfil_id', perfil.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"ahorro_mensual\": 350000\n}" },
+            "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
+          }
+        },
+        {
+          "name": "Consultar perfil (GET /api/perfil)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Es el perfil guardado', () => pm.expect(pm.response.json().nombre).to.eql('Harold'));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
           }
         }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }],
-        "url": { "raw": "{{base_url}}/user", "host": ["{{base_url}}"], "path": ["user"] },
-        "description": "Comprueba que las rutas de API existen y que los errores se responden en JSON."
-      }
+      ]
+    },
+    {
+      "name": "2. Metas",
+      "item": [
+        {
+          "name": "Crear meta inválida (POST /api/metas) → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "const errores = pm.response.json().errors;",
+            "pm.test('Pide los campos obligatorios', () => pm.expect(errores).to.include.keys('perfil_id', 'producto_id', 'nombre_producto', 'precio', 'moneda'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/metas", "host": ["{{base_url}}"], "path": ["metas"] }
+          }
+        },
+        {
+          "name": "Crear meta (POST /api/metas)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+            "const meta = pm.response.json();",
+            "pm.test('Empieza en progreso y sin ahorro', () => { pm.expect(meta.estado).to.eql('en_progreso'); pm.expect(meta.ahorrado).to.eql(0); pm.expect(meta.progreso).to.eql(0); });",
+            "pm.test('Calcula el precio final con el 10 % de descuento', () => pm.expect(meta.precio_final).to.eql(900000));",
+            "pm.collectionVariables.set('meta_id', meta.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"perfil_id\": {{perfil_id}},\n  \"producto_id\": \"78\",\n  \"nombre_producto\": \"Apple MacBook Pro 14 Inch Space Grey\",\n  \"imagen\": \"https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/thumbnail.webp\",\n  \"precio\": 1000000,\n  \"moneda\": \"COP\",\n  \"descuento\": 10\n}" },
+            "url": { "raw": "{{base_url}}/metas", "host": ["{{base_url}}"], "path": ["metas"] }
+          }
+        },
+        {
+          "name": "Listar metas (GET /api/metas)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "const ids = pm.response.json().map((m) => m.id);",
+            "pm.test('Incluye la meta creada', () => pm.expect(ids).to.include(Number(pm.collectionVariables.get('meta_id'))));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas", "host": ["{{base_url}}"], "path": ["metas"] }
+          }
+        },
+        {
+          "name": "Ver meta (GET /api/metas/{id})",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Trae la lista de abonos', () => pm.expect(pm.response.json().abonos).to.be.an('array'));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        },
+        {
+          "name": "Actualizar meta (PUT /api/metas/{id})",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Recalcula el precio final con el 20 % de descuento', () => pm.expect(pm.response.json().precio_final).to.eql(800000));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"descuento\": 20\n}" },
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        },
+        {
+          "name": "Meta que no existe (GET /api/metas/999999) → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 404', () => pm.response.to.have.status(404));",
+            "pm.test('El error viene en JSON', () => pm.expect(pm.response.json()).to.have.property('message'));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas/999999", "host": ["{{base_url}}"], "path": ["metas", "999999"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Abonos",
+      "item": [
+        {
+          "name": "Abono inválido (POST /api/metas/{id}/abonos) → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Explica el error del monto', () => pm.expect(pm.response.json().errors).to.have.property('monto'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"monto\": 0\n}" },
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}/abonos", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}", "abonos"] }
+          }
+        },
+        {
+          "name": "Primer abono (POST /api/metas/{id}/abonos)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+            "const { abono, meta } = pm.response.json();",
+            "pm.test('Usa la fecha de hoy si no se envía', () => pm.expect(abono.fecha).to.match(/^\\d{4}-\\d{2}-\\d{2}$/));",
+            "pm.test('La meta avanza al 37.5 %', () => { pm.expect(meta.ahorrado).to.eql(300000); pm.expect(meta.progreso).to.eql(37.5); });",
+            "pm.test('Sigue en progreso', () => pm.expect(meta.estado).to.eql('en_progreso'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"monto\": 300000\n}" },
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}/abonos", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}", "abonos"] }
+          }
+        },
+        {
+          "name": "Abono que completa la meta (POST /api/metas/{id}/abonos)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+            "const { meta } = pm.response.json();",
+            "pm.test('La meta llega al 100 %', () => pm.expect(meta.progreso).to.eql(100));",
+            "pm.test('Pasa a cumplida (el frontend lanza el confeti)', () => pm.expect(meta.estado).to.eql('cumplida'));",
+            "pm.test('Trae los dos abonos', () => pm.expect(meta.abonos).to.have.length(2));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"monto\": 500000\n}" },
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}/abonos", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}", "abonos"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Limpieza",
+      "item": [
+        {
+          "name": "Eliminar meta (DELETE /api/metas/{id})",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        },
+        {
+          "name": "La meta eliminada ya no existe → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        }
+      ]
     }
   ]
 }
