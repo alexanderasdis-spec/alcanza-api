@@ -37,4 +37,21 @@ class MetaUpdateRequest extends FormRequest
             'fecha_estimada' => 'sometimes|nullable|date',
         ];
     }
+
+    /**
+     * Mensajes de error en español.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'nombre_producto.required' => 'El nombre del producto no puede quedar vacío.',
+            'imagen.url' => 'La imagen debe ser una dirección web válida.',
+            'precio.gt' => 'El precio debe ser mayor que cero.',
+            'moneda.in' => 'La moneda debe ser COP, USD o EUR.',
+            'descuento.min' => 'El descuento no puede ser negativo.',
+            'descuento.max' => 'El descuento no puede pasar de 100 %.',
+        ];
+    }
 }

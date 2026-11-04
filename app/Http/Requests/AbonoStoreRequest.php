@@ -31,4 +31,21 @@ class AbonoStoreRequest extends FormRequest
             'fecha' => 'nullable|date|before_or_equal:today',
         ];
     }
+
+    /**
+     * Mensajes de error en español.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'monto.required' => 'Escribe cuánto vas a abonar.',
+            'monto.numeric' => 'El abono debe ser un número.',
+            'monto.gt' => 'El abono debe ser mayor que cero.',
+            'monto.max' => 'Ese monto parece demasiado alto, revísalo.',
+            'fecha.date' => 'La fecha no es válida.',
+            'fecha.before_or_equal' => 'El abono no puede tener una fecha futura.',
+        ];
+    }
 }

@@ -32,4 +32,22 @@ class PerfilRequest extends FormRequest
             'ahorro_mensual' => 'required|numeric|gt:0|max:100000000',
         ];
     }
+
+    /**
+     * Mensajes de error en español (el frontend los muestra junto a cada campo).
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'nombre.required' => 'Escribe tu nombre.',
+            'nombre.min' => 'El nombre debe tener al menos 2 letras.',
+            'nombre.max' => 'El nombre no puede pasar de 40 caracteres.',
+            'ahorro_mensual.required' => 'Escribe cuánto ahorras al mes.',
+            'ahorro_mensual.numeric' => 'El ahorro debe ser un número.',
+            'ahorro_mensual.gt' => 'El ahorro debe ser mayor que cero.',
+            'ahorro_mensual.max' => 'Ese monto parece demasiado alto, revísalo.',
+        ];
+    }
 }

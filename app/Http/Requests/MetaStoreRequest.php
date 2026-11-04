@@ -36,4 +36,27 @@ class MetaStoreRequest extends FormRequest
             'fecha_estimada' => 'nullable|date|after_or_equal:today',
         ];
     }
+
+    /**
+     * Mensajes de error en español.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'perfil_id.required' => 'Falta el perfil dueño de la meta.',
+            'perfil_id.exists' => 'Ese perfil no existe.',
+            'producto_id.required' => 'Falta el producto de la meta.',
+            'nombre_producto.required' => 'Falta el nombre del producto.',
+            'imagen.url' => 'La imagen debe ser una dirección web válida.',
+            'precio.required' => 'Falta el precio.',
+            'precio.gt' => 'El precio debe ser mayor que cero.',
+            'moneda.required' => 'Falta la moneda.',
+            'moneda.in' => 'La moneda debe ser COP, USD o EUR.',
+            'descuento.min' => 'El descuento no puede ser negativo.',
+            'descuento.max' => 'El descuento no puede pasar de 100 %.',
+            'fecha_estimada.after_or_equal' => 'La fecha estimada no puede estar en el pasado.',
+        ];
+    }
 }
