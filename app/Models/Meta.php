@@ -46,6 +46,9 @@ class Meta extends Model
     /** Valores calculados que se agregan siempre a la respuesta JSON. */
     protected $appends = ['precio_final', 'ahorrado', 'progreso'];
 
+    /** Campo interno de withSum: ya se entrega como "ahorrado", así que no se repite en el JSON. */
+    protected $hidden = ['abonos_sum_monto'];
+
     /**
      * @return array<string, string>
      */
