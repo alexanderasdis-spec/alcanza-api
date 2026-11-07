@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Perfil;
+use App\Models\User;
 use App\Repositories\Contracts\PerfilRepositoryInterface;
 
 /**
@@ -10,9 +11,9 @@ use App\Repositories\Contracts\PerfilRepositoryInterface;
  */
 class PerfilRepository implements PerfilRepositoryInterface
 {
-    public function actual(): ?Perfil
+    public function deUsuario(User $usuario): ?Perfil
     {
-        return Perfil::query()->oldest('id')->first();
+        return Perfil::query()->where('user_id', $usuario->id)->first();
     }
 
     public function create(array $datos): Perfil

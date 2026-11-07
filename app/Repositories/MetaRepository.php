@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Meta;
+use App\Models\Perfil;
 use App\Repositories\Contracts\MetaRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -11,10 +12,10 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class MetaRepository implements MetaRepositoryInterface
 {
-    public function all(): Collection
+    public function dePerfil(Perfil $perfil): Collection
     {
         // withSum agrega "abonos_sum_monto" en la misma consulta: así no se consulta cada meta por separado.
-        return Meta::query()->withSum('abonos', 'monto')->latest('id')->get();
+        return Meta::query()->where('perfil_id', $perfil->id)->withSum('abonos', 'monto')->latest('id')->get();
     }
 
     public function conAbonos(Meta $meta): Meta

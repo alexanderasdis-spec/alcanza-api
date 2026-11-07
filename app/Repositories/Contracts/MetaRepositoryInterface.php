@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use App\Models\Meta;
+use App\Models\Perfil;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -10,8 +11,8 @@ use Illuminate\Database\Eloquent\Collection;
  */
 interface MetaRepositoryInterface
 {
-    // las selecciona todas, con el total abonado de cada una
-    public function all(): Collection;
+    // las metas de un perfil, con el total abonado de cada una
+    public function dePerfil(Perfil $perfil): Collection;
 
     // carga los abonos y el total abonado de una meta
     public function conAbonos(Meta $meta): Meta;

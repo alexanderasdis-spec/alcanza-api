@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Dirección del frontend de React (para el enlace del correo de "Olvidé mi contraseña").
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

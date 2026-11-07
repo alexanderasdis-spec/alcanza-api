@@ -3,24 +3,31 @@
 namespace App\Services;
 
 use App\Models\Meta;
+use App\Models\User;
 use App\Repositories\Contracts\MetaRepositoryInterface;
+use App\Repositories\Contracts\PerfilRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Lógica de las metas de ahorro.
+ * Lógica de las metas de ahorro. Cada usuario solo ve y maneja las metas de su perfil.
  */
 class MetaService
 {
     public function __construct(
-        private MetaRepositoryInterface $metaRepository
+        private MetaRepositoryInterface $metaRepository,
+        private PerfilRepositoryInterface $perfilRepository
     ) {}
 
     /**
-     * Todas las metas, con su total ahorrado y su progreso.
+     * Las metas del usuario, con su total ahorrado y su progreso.
+     * Si todavía no tiene perfil, no tiene metas.
      */
-    public function listar(): Collection
+    public function listar(User $usuario): Collection
     {
-        return $this->metaRepository->all();
+        $perfil = $this->perfilRepository->deUsuario($usuario);
+
+        return $perfil ? $this->metaRepository->dePerfil($perfil) : new Collection;
     }
 
     /**
@@ -32,12 +39,21 @@ class MetaService
     }
 
     /**
-     * Crea una meta. Toda meta nueva empieza "en progreso".
+     * Crea una meta en el perfil del usuario. Toda meta nueva empieza "en progreso".
      *
      * @param  array<string, mixed>  $datos  Datos ya validados por MetaStoreRequest.
+     *
+     * @throws ValidationException Si el usuario todavía no tiene perfil (respuesta 422).
      */
-    public function crear(array $datos): Meta
+    public function crear(User $usuario, array $datos): Meta
     {
+        $perfil = $this->perfilRepository->deUsuario($usuario);
+
+        if ($perfil === null) {
+            throw ValidationException::withMessages(['perfil' => 'Primero crea tu perfil.']);
+        }
+
+        $datos['perfil_id'] = $perfil->id;
         $datos['estado'] = Meta::EN_PROGRESO;
 
         return $this->metaRepository->conAbonos($this->metaRepository->create($datos));

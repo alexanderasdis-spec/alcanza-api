@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AbonoStoreRequest;
 use App\Models\Meta;
 use App\Services\AbonoService;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Registro de abonos: POST /api/metas/{meta}/abonos.
@@ -22,6 +23,8 @@ class AbonosController extends Controller
      */
     public function store(AbonoStoreRequest $request, Meta $meta)
     {
+        // Solo el dueño de la meta puede abonarle (MetaPolicy → 403 si no).
+        Gate::authorize('update', $meta);
         $resultado = $this->abonoService->registrar($meta, $request->validated());
 
         return response()->json($resultado, 201);

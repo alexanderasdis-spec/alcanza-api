@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Perfil rápido del usuario: su nombre y cuánto ahorra al mes (en COP).
+ * Perfil de un usuario: el nombre con el que la app lo saluda y cuánto ahorra al mes (en COP).
  *
  * @property int $id
+ * @property int $user_id
  * @property string $nombre
  * @property float $ahorro_mensual
  */
@@ -18,6 +20,7 @@ class Perfil extends Model
     protected $table = 'perfiles';
 
     protected $fillable = [
+        'user_id',
         'nombre',
         'ahorro_mensual',
     ];
@@ -32,6 +35,14 @@ class Perfil extends Model
         return [
             'ahorro_mensual' => 'float',
         ];
+    }
+
+    /**
+     * Usuario dueño del perfil.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

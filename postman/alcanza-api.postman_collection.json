@@ -1,11 +1,17 @@
 {
   "info": {
     "name": "alcanza-api",
-    "description": "Colección para probar la API de Alcanza (Laravel + Sail en WSL, base data_alcanza). Usar con el environment 'alcanza-api local'. Las peticiones van en orden: crean el perfil, una meta, sus abonos hasta cumplirla y al final la eliminan. Cada una verifica su código de respuesta: usa Run collection (o Newman) para probarlas todas.",
+    "description": "Colección para probar la API de Alcanza (Laravel + Sail en WSL, base data_alcanza). Usar con el environment 'alcanza-api local'. Las peticiones van en orden: crean una cuenta nueva (con un correo único), inician sesión y guardan el token, crean el perfil, una meta y sus abonos hasta cumplirla, comprueban que otro usuario no pueda verla, la eliminan y cierran la sesión. Cada una verifica su código de respuesta: usa Run collection (o Newman) para probarlas todas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
   "variable": [
-    { "key": "perfil_id", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "token_otro", "value": "" },
+    { "key": "email", "value": "" },
     { "key": "meta_id", "value": "" }
   ],
   "item": [
@@ -18,35 +24,176 @@
             "pm.test('Laravel responde 200', () => pm.response.to.have.status(200));"
           ] } }],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{host}}/up", "host": ["{{host}}"], "path": ["up"] },
-            "description": "Si responde 200, Laravel está levantado."
+            "url": { "raw": "{{host}}/up", "host": ["{{host}}"], "path": ["up"] }
           }
         },
         {
-          "name": "Usuario autenticado sin token (GET /api/user)",
+          "name": "Perfil sin token (GET /api/perfil) → 401",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Sin token responde 401', () => pm.response.to.have.status(401));",
             "pm.test('El error viene en JSON', () => pm.expect(pm.response.json()).to.have.property('message'));"
           ] } }],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/user", "host": ["{{base_url}}"], "path": ["user"] }
+            "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] },
+            "description": "Las rutas de perfil, metas y abonos exigen iniciar sesión."
           }
         }
       ]
     },
     {
-      "name": "1. Perfil",
+      "name": "1. Cuenta",
       "item": [
+        {
+          "name": "Registro inválido (POST /api/registro) → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "const errores = pm.response.json().errors;",
+            "pm.test('Explica los errores de nombre, correo y contraseña', () => pm.expect(errores).to.have.keys('nombre', 'email', 'password'));",
+            "pm.test('Pide que las contraseñas coincidan', () => pm.expect(errores.password.join(' ')).to.include('no coinciden'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"\",\n  \"email\": \"no-es-un-correo\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"otra1234\"\n}" },
+            "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
+          }
+        },
+        {
+          "name": "Registro (POST /api/registro)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "// Correo único en cada ejecución, para poder correr la colección muchas veces.",
+              "pm.collectionVariables.set('email', `prueba-${Date.now()}@alcanza.test`);"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+              "const { usuario, token } = pm.response.json();",
+              "pm.test('Devuelve el usuario sin la contraseña', () => { pm.expect(usuario.nombre).to.eql('Harold'); pm.expect(usuario).to.not.have.property('password'); });",
+              "pm.test('Devuelve un token', () => pm.expect(token).to.be.a('string').and.not.empty);"
+            ] } }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
+          }
+        },
+        {
+          "name": "Registro con correo repetido → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Avisa que el correo ya existe', () => pm.expect(pm.response.json().errors.email[0]).to.include('Ya existe'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
+          }
+        },
+        {
+          "name": "Login con contraseña incorrecta → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('No dice si falló el correo o la contraseña', () => pm.expect(pm.response.json().errors.email[0]).to.eql('El correo o la contraseña no son correctos.'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"incorrecta1\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          }
+        },
+        {
+          "name": "Login (POST /api/login)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "const { token } = pm.response.json();",
+            "pm.test('Devuelve un token', () => pm.expect(token).to.be.a('string').and.not.empty);",
+            "// Las siguientes peticiones usan este token (autorización Bearer de la colección).",
+            "pm.collectionVariables.set('token', token);"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          }
+        },
+        {
+          "name": "Usuario actual (GET /api/usuario)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Es el usuario que inició sesión', () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('email')));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/usuario", "host": ["{{base_url}}"], "path": ["usuario"] }
+          }
+        },
+        {
+          "name": "Olvidé mi contraseña (POST /api/olvide-contrasena)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('No revela si el correo existe', () => pm.expect(pm.response.json().message).to.include('Si el correo está registrado'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{base_url}}/olvide-contrasena", "host": ["{{base_url}}"], "path": ["olvide-contrasena"] },
+            "description": "El correo llega a Mailpit: http://localhost:8025"
+          }
+        },
+        {
+          "name": "Restablecer con enlace inválido → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Explica que el enlace no sirve', () => pm.expect(pm.response.json().errors.email[0]).to.include('no es válido'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"token-inventado\",\n  \"email\": \"{{email}}\",\n  \"password\": \"nueva1234\",\n  \"password_confirmation\": \"nueva1234\"\n}" },
+            "url": { "raw": "{{base_url}}/restablecer-contrasena", "host": ["{{base_url}}"], "path": ["restablecer-contrasena"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Perfil",
+      "item": [
+        {
+          "name": "Perfil todavía no creado (GET /api/perfil) → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
+          }
+        },
         {
           "name": "Guardar perfil inválido (POST /api/perfil) → 422",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 422', () => pm.response.to.have.status(422));",
-            "const errores = pm.response.json().errors;",
-            "pm.test('Explica el error de nombre y de ahorro', () => pm.expect(errores).to.have.keys('nombre', 'ahorro_mensual'));"
+            "pm.test('Explica el error de nombre y de ahorro', () => pm.expect(pm.response.json().errors).to.have.keys('nombre', 'ahorro_mensual'));"
           ] } }],
           "request": {
             "method": "POST",
@@ -56,12 +203,10 @@
           }
         },
         {
-          "name": "Guardar perfil (POST /api/perfil)",
+          "name": "Crear perfil (POST /api/perfil) → 201",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Responde 201 (creado) o 200 (actualizado)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-            "const perfil = pm.response.json();",
-            "pm.test('Devuelve el perfil con número de ahorro', () => pm.expect(perfil.ahorro_mensual).to.eql(350000));",
-            "pm.collectionVariables.set('perfil_id', perfil.id);"
+            "pm.test('Responde 201 (creado)', () => pm.response.to.have.status(201));",
+            "pm.test('Devuelve el ahorro como número', () => pm.expect(pm.response.json().ahorro_mensual).to.eql(350000));"
           ] } }],
           "request": {
             "method": "POST",
@@ -71,28 +216,28 @@
           }
         },
         {
-          "name": "Consultar perfil (GET /api/perfil)",
+          "name": "Actualizar perfil (POST /api/perfil) → 200",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-            "pm.test('Es el perfil guardado', () => pm.expect(pm.response.json().nombre).to.eql('Harold'));"
+            "pm.test('Responde 200 (actualizado)', () => pm.response.to.have.status(200));",
+            "pm.test('Guardó el nuevo ahorro', () => pm.expect(pm.response.json().ahorro_mensual).to.eql(400000));"
           ] } }],
           "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"ahorro_mensual\": 400000\n}" },
             "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
           }
         }
       ]
     },
     {
-      "name": "2. Metas",
+      "name": "3. Metas",
       "item": [
         {
           "name": "Crear meta inválida (POST /api/metas) → 422",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 422', () => pm.response.to.have.status(422));",
-            "const errores = pm.response.json().errors;",
-            "pm.test('Pide los campos obligatorios', () => pm.expect(errores).to.include.keys('perfil_id', 'producto_id', 'nombre_producto', 'precio', 'moneda'));"
+            "pm.test('Pide los campos obligatorios', () => pm.expect(pm.response.json().errors).to.include.keys('producto_id', 'nombre_producto', 'precio', 'moneda'));"
           ] } }],
           "request": {
             "method": "POST",
@@ -113,7 +258,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"perfil_id\": {{perfil_id}},\n  \"producto_id\": \"78\",\n  \"nombre_producto\": \"Apple MacBook Pro 14 Inch Space Grey\",\n  \"imagen\": \"https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/thumbnail.webp\",\n  \"precio\": 1000000,\n  \"moneda\": \"COP\",\n  \"descuento\": 10\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"producto_id\": \"78\",\n  \"nombre_producto\": \"Apple MacBook Pro 14 Inch Space Grey\",\n  \"imagen\": \"https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/thumbnail.webp\",\n  \"precio\": 1000000,\n  \"moneda\": \"COP\",\n  \"descuento\": 10\n}" },
             "url": { "raw": "{{base_url}}/metas", "host": ["{{base_url}}"], "path": ["metas"] }
           }
         },
@@ -121,8 +266,8 @@
           "name": "Listar metas (GET /api/metas)",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-            "const ids = pm.response.json().map((m) => m.id);",
-            "pm.test('Incluye la meta creada', () => pm.expect(ids).to.include(Number(pm.collectionVariables.get('meta_id'))));"
+            "const metas = pm.response.json();",
+            "pm.test('Solo trae la meta de este usuario', () => { pm.expect(metas).to.have.length(1); pm.expect(metas[0].id).to.eql(Number(pm.collectionVariables.get('meta_id'))); });"
           ] } }],
           "request": {
             "method": "GET",
@@ -170,7 +315,65 @@
       ]
     },
     {
-      "name": "3. Abonos",
+      "name": "4. Otro usuario",
+      "item": [
+        {
+          "name": "Registrar otro usuario",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('token_otro', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Otra persona\",\n  \"email\": \"otro-{{$timestamp}}@alcanza.test\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
+          }
+        },
+        {
+          "name": "Ver la meta de otro usuario → 403",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 403 (MetaPolicy)', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token_otro}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        },
+        {
+          "name": "Abonar a la meta de otro usuario → 403",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 403 (MetaPolicy)', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token_otro}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"monto\": 1000\n}" },
+            "url": { "raw": "{{base_url}}/metas/{{meta_id}}/abonos", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}", "abonos"] }
+          }
+        },
+        {
+          "name": "Crear meta sin perfil → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Pide crear el perfil primero', () => pm.expect(pm.response.json().errors.perfil[0]).to.eql('Primero crea tu perfil.'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token_otro}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"producto_id\": \"1\",\n  \"nombre_producto\": \"Prueba\",\n  \"precio\": 1000,\n  \"moneda\": \"COP\"\n}" },
+            "url": { "raw": "{{base_url}}/metas", "host": ["{{base_url}}"], "path": ["metas"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Abonos",
       "item": [
         {
           "name": "Abono inválido (POST /api/metas/{id}/abonos) → 422",
@@ -220,7 +423,7 @@
       ]
     },
     {
-      "name": "4. Limpieza",
+      "name": "6. Limpieza y salida",
       "item": [
         {
           "name": "Eliminar meta (DELETE /api/metas/{id})",
@@ -242,6 +445,28 @@
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/metas/{{meta_id}}", "host": ["{{base_url}}"], "path": ["metas", "{{meta_id}}"] }
+          }
+        },
+        {
+          "name": "Cerrar sesión (POST /api/logout)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] }
+          }
+        },
+        {
+          "name": "El token ya no sirve → 401",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 401', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/usuario", "host": ["{{base_url}}"], "path": ["usuario"] }
           }
         }
       ]

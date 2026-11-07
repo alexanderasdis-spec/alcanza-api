@@ -26,7 +26,7 @@ class MetaStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'perfil_id' => 'required|integer|exists:perfiles,id',
+            // El perfil no se envía: lo toma el servicio del usuario que inició sesión.
             'producto_id' => 'required|string|max:40',
             'nombre_producto' => 'required|string|max:255',
             'imagen' => 'nullable|url|max:255',
@@ -45,8 +45,6 @@ class MetaStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'perfil_id.required' => 'Falta el perfil dueño de la meta.',
-            'perfil_id.exists' => 'Ese perfil no existe.',
             'producto_id.required' => 'Falta el producto de la meta.',
             'nombre_producto.required' => 'Falta el nombre del producto.',
             'imagen.url' => 'La imagen debe ser una dirección web válida.',
