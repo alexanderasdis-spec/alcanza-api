@@ -21,6 +21,7 @@ Route::middleware('throttle:cuentas')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('usuario', [AuthController::class, 'usuario']);
     Route::post('logout', [AuthController::class, 'logout']);
+    Route::put('contrasena', [AuthController::class, 'cambiarContrasena'])->middleware('throttle:cuentas');
 
     // Perfil del usuario: consultar y guardar.
     Route::get('perfil', [PerfilController::class, 'show']);

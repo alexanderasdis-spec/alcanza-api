@@ -145,6 +145,45 @@
           }
         },
         {
+          "name": "Cambiar contraseña con la actual incorrecta → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Avisa que la actual no es correcta', () => pm.expect(pm.response.json().errors.password_actual[0]).to.include('no es correcta'));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"password_actual\": \"equivocada1\",\n  \"password\": \"nueva1234\",\n  \"password_confirmation\": \"nueva1234\"\n}" },
+            "url": { "raw": "{{base_url}}/contrasena", "host": ["{{base_url}}"], "path": ["contrasena"] }
+          }
+        },
+        {
+          "name": "Cambiar contraseña (PUT /api/contrasena)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"password_actual\": \"clave1234\",\n  \"password\": \"nueva1234\",\n  \"password_confirmation\": \"nueva1234\"\n}" },
+            "url": { "raw": "{{base_url}}/contrasena", "host": ["{{base_url}}"], "path": ["contrasena"] }
+          }
+        },
+        {
+          "name": "Login con la contraseña nueva → 200",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.collectionVariables.set('token', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"nueva1234\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          }
+        },
+        {
           "name": "Olvidé mi contraseña (POST /api/olvide-contrasena)",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 200', () => pm.response.to.have.status(200));",
@@ -267,7 +306,8 @@
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 200', () => pm.response.to.have.status(200));",
             "const metas = pm.response.json();",
-            "pm.test('Solo trae la meta de este usuario', () => { pm.expect(metas).to.have.length(1); pm.expect(metas[0].id).to.eql(Number(pm.collectionVariables.get('meta_id'))); });"
+            "pm.test('Solo trae la meta de este usuario', () => { pm.expect(metas).to.have.length(1); pm.expect(metas[0].id).to.eql(Number(pm.collectionVariables.get('meta_id'))); });",
+            "pm.test('Trae los abonos de cada meta (para el gráfico)', () => pm.expect(metas[0].abonos).to.be.an('array'));"
           ] } }],
           "request": {
             "method": "GET",

@@ -14,8 +14,9 @@ class MetaRepository implements MetaRepositoryInterface
 {
     public function dePerfil(Perfil $perfil): Collection
     {
-        // withSum agrega "abonos_sum_monto" en la misma consulta: así no se consulta cada meta por separado.
-        return Meta::query()->where('perfil_id', $perfil->id)->withSum('abonos', 'monto')->latest('id')->get();
+        // with('abonos') trae los abonos de todas las metas en una sola consulta extra (para el gráfico
+        // de ahorro mes a mes) y withSum agrega "abonos_sum_monto" sin consultar cada meta por separado.
+        return Meta::query()->where('perfil_id', $perfil->id)->with('abonos')->withSum('abonos', 'monto')->latest('id')->get();
     }
 
     public function conAbonos(Meta $meta): Meta

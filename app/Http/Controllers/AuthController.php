@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CambiarContrasenaRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\OlvideContrasenaRequest;
 use App\Http\Requests\RegistroRequest;
@@ -53,6 +54,17 @@ class AuthController extends Controller
         $this->authService->cerrarSesion($request->user());
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Cambia la contraseña con la sesión iniciada - METHOD PUT
+     * Las demás sesiones abiertas se cierran; la actual sigue funcionando.
+     */
+    public function cambiarContrasena(CambiarContrasenaRequest $request)
+    {
+        $this->authService->cambiarContrasena($request->user(), $request->validated('password'));
+
+        return response()->json(['message' => 'Tu contraseña se cambió.'], 200);
     }
 
     /**

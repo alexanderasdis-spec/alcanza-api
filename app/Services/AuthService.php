@@ -66,6 +66,16 @@ class AuthService
     }
 
     /**
+     * Cambia la contraseña de un usuario con sesión iniciada y cierra sus otras sesiones
+     * (borra todos los tokens menos el que está usando).
+     */
+    public function cambiarContrasena(User $usuario, string $nueva): void
+    {
+        $usuario->forceFill(['password' => $nueva])->save();
+        $usuario->tokens()->where('id', '!=', $usuario->currentAccessToken()->id)->delete();
+    }
+
+    /**
      * Envía el correo con el enlace para cambiar la contraseña.
      * No dice si el correo existe o no, para no revelar qué cuentas hay.
      */
