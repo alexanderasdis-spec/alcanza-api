@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Perfil;
 use App\Models\User;
 use App\Repositories\Contracts\PerfilRepositoryInterface;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Lógica del perfil. Cada usuario tiene un solo perfil:
@@ -39,5 +41,55 @@ class PerfilService
         }
 
         return [$this->perfilRepository->update($perfil, $datos), false];
+    }
+
+    /**
+     * Guarda una foto nueva y borra la anterior para no acumular archivos.
+     *
+     * @return Perfil|null null si el usuario todavía no tiene perfil.
+     */
+    public function cambiarFoto(User $usuario, UploadedFile $archivo): ?Perfil
+    {
+        $perfil = $this->perfilRepository->deUsuario($usuario);
+
+        if ($perfil === null) {
+            return null;
+        }
+
+        $anterior = $perfil->foto;
+        $perfil = $this->perfilRepository->update($perfil, ['foto' => $archivo->store('fotos', 'public')]);
+        $this->borrarArchivo($anterior);
+
+        return $perfil;
+    }
+
+    /**
+     * Quita la foto del perfil y borra el archivo.
+     *
+     * @return Perfil|null null si el usuario todavía no tiene perfil.
+     */
+    public function quitarFoto(User $usuario): ?Perfil
+    {
+        $perfil = $this->perfilRepository->deUsuario($usuario);
+
+        if ($perfil === null) {
+            return null;
+        }
+
+        $anterior = $perfil->foto;
+        $perfil = $this->perfilRepository->update($perfil, ['foto' => null]);
+        $this->borrarArchivo($anterior);
+
+        return $perfil;
+    }
+
+    /**
+     * Borra un archivo del disco "public", si hay alguno.
+     */
+    private function borrarArchivo(?string $ruta): void
+    {
+        if ($ruta !== null) {
+            Storage::disk('public')->delete($ruta);
+        }
     }
 }

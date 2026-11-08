@@ -266,6 +266,45 @@
             "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"ahorro_mensual\": 400000\n}" },
             "url": { "raw": "{{base_url}}/perfil", "host": ["{{base_url}}"], "path": ["perfil"] }
           }
+        },
+        {
+          "name": "Foto que no es imagen (POST /api/perfil/foto) → 422",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('El error es del campo foto', () => pm.expect(pm.response.json().errors).to.have.property('foto'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "formdata", "formdata": [{ "key": "foto", "value": "esto no es una imagen", "type": "text" }] },
+            "url": { "raw": "{{base_url}}/perfil/foto", "host": ["{{base_url}}"], "path": ["perfil", "foto"] }
+          }
+        },
+        {
+          "name": "Subir foto (POST /api/perfil/foto) → 200",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Entrega la dirección pública', () => pm.expect(pm.response.json().foto_url).to.include('/storage/fotos/'));",
+            "pm.test('No expone la ruta interna', () => pm.expect(pm.response.json()).to.not.have.property('foto'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "formdata", "formdata": [{ "key": "foto", "type": "file", "src": "foto-prueba.png" }] },
+            "url": { "raw": "{{base_url}}/perfil/foto", "host": ["{{base_url}}"], "path": ["perfil", "foto"] }
+          }
+        },
+        {
+          "name": "Quitar foto (DELETE /api/perfil/foto) → 200",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Ya no tiene foto', () => pm.expect(pm.response.json().foto_url).to.eql(null));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/perfil/foto", "host": ["{{base_url}}"], "path": ["perfil", "foto"] }
+          }
         }
       ]
     },

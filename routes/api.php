@@ -27,6 +27,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('perfil', [PerfilController::class, 'show']);
     Route::post('perfil', [PerfilController::class, 'store']);
 
+    // Foto de perfil: subir o reemplazar, y quitar.
+    Route::post('perfil/foto', [PerfilController::class, 'subirFoto'])->middleware('throttle:cuentas');
+    Route::delete('perfil/foto', [PerfilController::class, 'eliminarFoto']);
+
     // Metas de ahorro: GET, POST, GET {id}, PUT/PATCH {id}, DELETE {id}.
     Route::apiResource('metas', MetasController::class);
 
