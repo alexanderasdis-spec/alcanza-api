@@ -14,7 +14,8 @@ Proyecto final del módulo **Creación de páginas web 2** · Harold Alexander C
 | Entorno | Docker con Laravel Sail, dentro de Ubuntu en WSL2 |
 | Correos de prueba | Mailpit |
 | Anti-robots | Cloudflare Turnstile |
-| Pruebas | Postman y Newman |
+| Pruebas | Postman y Newman (funcionales), k6 (carga y ataque) |
+| Protección | Límites de peticiones por IP, por token y por usuario |
 
 ## Arquitectura
 
@@ -33,8 +34,19 @@ Ruta → Form Request → Controlador → Servicio → Repositorio (con interfaz
 | Repositorios | `app/Repositories` | Hablan con la base de datos; sus contratos están en `Contracts/` |
 | Modelos | `app/Models` | Representan las tablas y calculan valores como el progreso |
 | Políticas | `app/Policies` | `MetaPolicy` impide tocar metas de otra persona (403) |
+| Middleware | `app/Http/Middleware` | `LimiteTemprano`: primer filtro, limita por IP y por token (429) |
+| Reglas | `app/Rules` | `Turnstile`: comprueba con Cloudflare el "no soy un robot" (422) |
 
-La unión entre cada contrato y su repositorio está en `app/Providers/AppServiceProvider.php`.
+La unión entre cada contrato y su repositorio está en `app/Providers/AppServiceProvider.php`, que también define los límites por usuario, de escrituras y de cuentas. Los valores de los límites están en `config/limites.php`.
+
+## Estado
+
+| Hecho | Pendiente |
+|---|---|
+| Cuentas con Sanctum, recuperación de contraseña y cambio de contraseña | Subir el repositorio a GitHub |
+| Perfil con foto, metas y abonos con progreso calculado | Desplegar gratis (Laravel y MySQL en la nube) |
+| Turnstile y límites de peticiones | Claves reales de Turnstile y Cloudflare frente al sitio |
+| Postman (37 peticiones, 74 comprobaciones) y k6 (carga y ataque) | Guardar las fotos y enviar correos con servicios externos |
 
 ## Instalación
 
