@@ -2,11 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\Turnstile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Valida la petición de "Olvidé mi contraseña" (solo el correo).
+ * Valida la petición de "Olvidé mi contraseña": el correo y la verificación de Turnstile.
  */
 class OlvideContrasenaRequest extends FormRequest
 {
@@ -27,6 +28,7 @@ class OlvideContrasenaRequest extends FormRequest
     {
         return [
             'email' => 'required|email',
+            'turnstile' => ['required', 'string', new Turnstile],
         ];
     }
 
@@ -40,6 +42,7 @@ class OlvideContrasenaRequest extends FormRequest
         return [
             'email.required' => 'Escribe tu correo.',
             'email.email' => 'Ese correo no es válido.',
+            'turnstile.required' => 'Confirma que no eres un robot.',
         ];
     }
 }

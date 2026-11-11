@@ -12,7 +12,8 @@
     { "key": "token", "value": "" },
     { "key": "token_otro", "value": "" },
     { "key": "email", "value": "" },
-    { "key": "meta_id", "value": "" }
+    { "key": "meta_id", "value": "" },
+    { "key": "turnstile", "value": "XXXX.DUMMY.TOKEN.XXXX", "description": "Código de prueba de Cloudflare: lo aceptan las claves secretas de prueba" }
   ],
   "item": [
     {
@@ -53,8 +54,9 @@
           "name": "Registro inválido (POST /api/registro) → 422",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+            "pm.test('Pide la verificación de Turnstile', () => pm.expect(pm.response.json().errors).to.have.property('turnstile'));",
             "const errores = pm.response.json().errors;",
-            "pm.test('Explica los errores de nombre, correo y contraseña', () => pm.expect(errores).to.have.keys('nombre', 'email', 'password'));",
+            "pm.test('Explica los errores de nombre, correo y contraseña', () => pm.expect(errores).to.include.all.keys('nombre', 'email', 'password'));",
             "pm.test('Pide que las contraseñas coincidan', () => pm.expect(errores.password.join(' ')).to.include('no coinciden'));"
           ] } }],
           "request": {
@@ -83,7 +85,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
           }
         },
@@ -97,7 +99,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Harold\",\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
           }
         },
@@ -111,7 +113,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"incorrecta1\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"incorrecta1\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
           }
         },
@@ -128,7 +130,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"clave1234\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
           }
         },
@@ -179,7 +181,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"nueva1234\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"nueva1234\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
           }
         },
@@ -193,7 +195,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/olvide-contrasena", "host": ["{{base_url}}"], "path": ["olvide-contrasena"] },
             "description": "El correo llega a Mailpit: http://localhost:8025"
           }
@@ -406,7 +408,7 @@
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Otra persona\",\n  \"email\": \"otro-{{$timestamp}}@alcanza.test\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Otra persona\",\n  \"email\": \"otro-{{$timestamp}}@alcanza.test\",\n  \"password\": \"clave1234\",\n  \"password_confirmation\": \"clave1234\",\n  \"turnstile\": \"{{turnstile}}\"\n}" },
             "url": { "raw": "{{base_url}}/registro", "host": ["{{base_url}}"], "path": ["registro"] }
           }
         },

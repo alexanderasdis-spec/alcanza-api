@@ -34,7 +34,7 @@ export const options = {
 export function setup() {
   const h = { 'Content-Type': 'application/json', Accept: 'application/json' }
   const email = `estres-${Date.now()}@alcanza.test`
-  const r = http.post(`${BASE}/registro`, JSON.stringify({ nombre: 'Estres', email, password: 'Prueba1234x', password_confirmation: 'Prueba1234x' }), { headers: h })
+  const r = http.post(`${BASE}/registro`, JSON.stringify({ nombre: 'Estres', email, password: 'Prueba1234x', password_confirmation: 'Prueba1234x', turnstile: 'XXXX.DUMMY.TOKEN.XXXX' }), { headers: h })
   const token = r.json('token')
   const auth = { ...h, Authorization: `Bearer ${token}` }
   http.post(`${BASE}/perfil`, JSON.stringify({ nombre: 'Estres', ahorro_mensual: 400000 }), { headers: auth })

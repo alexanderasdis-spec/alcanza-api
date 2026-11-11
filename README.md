@@ -13,6 +13,7 @@ Proyecto final del módulo **Creación de páginas web 2** · Harold Alexander C
 | Base de datos | MySQL 8.4, base `data_alcanza` |
 | Entorno | Docker con Laravel Sail, dentro de Ubuntu en WSL2 |
 | Correos de prueba | Mailpit |
+| Anti-robots | Cloudflare Turnstile |
 | Pruebas | Postman y Newman |
 
 ## Arquitectura
@@ -61,12 +62,15 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 | `FRONTEND_URLS` | Direcciones del frontend que pueden llamar a la API (CORS), separadas por comas |
 | `FRONTEND_URL` | Dirección a la que lleva el enlace del correo para restablecer la contraseña |
 | `VITE_PORT=5175` | Evita que Sail use el puerto 5173 del frontend |
+| `TURNSTILE_SECRET_KEY` | Clave secreta de Cloudflare Turnstile. La de ejemplo es la de prueba, que siempre aprueba; al desplegar se cambia por la real |
 
 ## Rutas
 
 Todas empiezan por `/api`. Las protegidas necesitan el encabezado `Authorization: Bearer <token>`.
 
 ### Públicas (máximo 10 intentos por minuto)
+
+Registro, login y olvidé contraseña exigen además el campo `turnstile`: el código de la verificación "no soy un robot" de **Cloudflare Turnstile**. La regla `app/Rules/Turnstile.php` lo comprueba con Cloudflare usando `TURNSTILE_SECRET_KEY`; si no es válido, responde 422.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
@@ -123,7 +127,7 @@ La colección está en `postman/`. Para correrla toda con Newman, con Sail encen
 docker run --rm --network alcanza-api_sail -v "$(pwd)/postman:/etc/newman" postman/newman:alpine run alcanza-api.postman_collection.json -e alcanza-api-local.postman_environment.json --env-var host=http://laravel.test
 ```
 
-Resultado actual: 37 peticiones y 72 comprobaciones, 0 fallidas. La colección crea usuarios con correos `@alcanza.test`, que se pueden borrar después.
+Resultado actual: 37 peticiones y 74 comprobaciones, 0 fallidas. La colección crea usuarios con correos `@alcanza.test`, que se pueden borrar después. Envía como `turnstile` el código de prueba de Cloudflare (`XXXX.DUMMY.TOKEN.XXXX`), que solo aceptan las claves de prueba.
 
 En Postman: **Import** → los dos archivos de `postman/` → elegir el entorno "alcanza-api local" → **Run collection**.
 

@@ -2,12 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\Turnstile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Valida el registro de una cuenta nueva.
+ * Valida el registro de una cuenta nueva, incluida la verificación de Turnstile.
  */
 class RegistroRequest extends FormRequest
 {
@@ -31,6 +32,7 @@ class RegistroRequest extends FormRequest
             'nombre' => 'required|string|min:2|max:40',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'turnstile' => ['required', 'string', new Turnstile],
         ];
     }
 
@@ -53,6 +55,7 @@ class RegistroRequest extends FormRequest
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.letters' => 'La contraseña debe tener al menos una letra.',
             'password.numbers' => 'La contraseña debe tener al menos un número.',
+            'turnstile.required' => 'Confirma que no eres un robot.',
         ];
     }
 }

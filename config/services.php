@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    // Cloudflare Turnstile: verificación "no soy un robot" en registro, login y olvidé contraseña.
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];

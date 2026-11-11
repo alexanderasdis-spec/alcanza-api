@@ -2,11 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\Turnstile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Valida el inicio de sesión (que lleguen correo y contraseña).
+ * Valida el inicio de sesión (que lleguen correo, contraseña y la verificación de Turnstile).
  * Si coinciden o no con una cuenta lo revisa AuthService.
  */
 class LoginRequest extends FormRequest
@@ -29,6 +30,7 @@ class LoginRequest extends FormRequest
         return [
             'email' => 'required|email',
             'password' => 'required|string',
+            'turnstile' => ['required', 'string', new Turnstile],
         ];
     }
 
@@ -43,6 +45,7 @@ class LoginRequest extends FormRequest
             'email.required' => 'Escribe tu correo.',
             'email.email' => 'Ese correo no es válido.',
             'password.required' => 'Escribe tu contraseña.',
+            'turnstile.required' => 'Confirma que no eres un robot.',
         ];
     }
 }
