@@ -63,6 +63,8 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 | `FRONTEND_URL` | Dirección a la que lleva el enlace del correo para restablecer la contraseña |
 | `VITE_PORT=5175` | Evita que Sail use el puerto 5173 del frontend |
 | `TURNSTILE_SECRET_KEY` | Clave secreta de Cloudflare Turnstile. La de ejemplo es la de prueba, que siempre aprueba; al desplegar se cambia por la real |
+| `LIMITE_POR_IP`, `LIMITE_POR_USUARIO`, `LIMITE_ESCRITURAS`, `LIMITE_CUENTAS` | Peticiones por minuto permitidas (ver "Límites de peticiones") |
+| `LIMITE_ALMACEN=file` | Dónde se guardan los contadores de los límites |
 
 ## Rutas
 
@@ -107,6 +109,28 @@ Registro, login y olvidé contraseña exigen además el campo `turnstile`: el c�
 | 404 | No existe |
 | 422 | Datos inválidos; el detalle viene en `errors` |
 | 429 | Demasiados intentos |
+
+### Límites de peticiones
+
+Para que una sola IP o una sola cuenta no acapare el servidor, la API cuenta las peticiones por minuto y responde **429** con el encabezado `Retry-After` cuando alguien se pasa:
+
+| Límite | Por minuto | Se cuenta por | Dónde |
+|---|---|---|---|
+| Filtro temprano | 300 | IP | `app/Http/Middleware/LimiteTemprano.php`, antes de revisar el token |
+| Filtro temprano | 120 | Token | El mismo middleware |
+| Con sesión | 120 | Usuario | `throttle:por_usuario` |
+| Escrituras | 30 | Usuario | `throttle:escrituras`: crear, cambiar, borrar y abonar |
+| Cuentas | 10 | IP y ruta | `throttle:cuentas`: registro, login, contraseñas y foto |
+
+El filtro temprano va antes que todo para que rechazar sea barato: no consulta la base de datos para saber quién es. La prueba `pruebas/carga/ataque.js` (30 conexiones sin pausa con una misma cuenta, más una persona normal) dio estos resultados:
+
+| | Peticiones rechazadas por segundo | Respuesta para la persona normal (95 %) |
+|---|---|---|
+| Sin límite | 0 (atendía todo) | 2,33 s |
+| Límite después de revisar el token | 17,8 | 1,76 s |
+| Filtro temprano con contadores en archivos | 34,0 | 1,40 s |
+
+El atacante quedó frenado en 120 peticiones por minuto. Aun así, cada petición rechazada pasa por PHP, así que un ataque grande desde muchos equipos se debe frenar antes de llegar al servidor: Cloudflare (reglas de límite) o Nginx (`limit_req`) al desplegar. Detrás de Cloudflare también hay que configurar los proxies de confianza para que Laravel vea la IP real.
 
 ## Base de datos
 

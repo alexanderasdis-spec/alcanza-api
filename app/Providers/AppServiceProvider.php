@@ -39,9 +39,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Límite de intentos de las rutas de cuentas: 10 por minuto, contados por dirección IP
-        // y por ruta (los intentos de login no gastan los del registro).
-        RateLimiter::for('cuentas', fn (Request $request) => Limit::perMinute(10)->by($request->ip().'|'.$request->path()));
+        $this->definirLimites();
 
         // El enlace de "Olvidé mi contraseña" lleva a la página de React, no a una vista de Laravel.
         ResetPassword::createUrlUsing(fn (User $usuario, string $token) => $this->enlaceRestablecer($usuario, $token));
@@ -55,6 +53,38 @@ class AppServiceProvider extends ServiceProvider
             ->line('El enlace vence en '.config('auth.passwords.users.expire').' minutos.')
             ->line('Si no pediste este cambio, puedes ignorar este correo: tu contraseña sigue igual.')
             ->salutation('El equipo de Alcanza'));
+    }
+
+    /**
+     * Límites de peticiones por minuto de las rutas. Los valores están en config/limites.php.
+     * El límite por IP y por token va antes, en el middleware LimiteTemprano.
+     *
+     * - por_usuario: rutas con sesión, por usuario (cubre varios tokens de la misma cuenta).
+     * - escrituras: crear, cambiar, borrar y abonar, por usuario.
+     * - cuentas: registro, login y contraseñas, por IP y por ruta.
+     *
+     * Al pasarse, la API responde 429 con un mensaje en español y el encabezado Retry-After
+     * (cuántos segundos esperar).
+     */
+    private function definirLimites(): void
+    {
+        $demasiadas = fn (Request $request, array $encabezados) => response()->json(
+            ['message' => 'Hiciste demasiadas peticiones. Espera un momento y vuelve a intentarlo.'],
+            429,
+            $encabezados,
+        );
+        // Con sesión se cuenta por usuario; sin sesión, por IP.
+        $identificador = fn (Request $request) => $request->user()?->id ? 'usuario:'.$request->user()->id : 'ip:'.$request->ip();
+
+        RateLimiter::for('por_usuario', fn (Request $request) => Limit::perMinute(config('limites.por_usuario'))
+            ->by($identificador($request))->response($demasiadas));
+
+        RateLimiter::for('escrituras', fn (Request $request) => Limit::perMinute(config('limites.escrituras'))
+            ->by($identificador($request))->response($demasiadas));
+
+        // Los intentos de login no gastan los del registro: se cuenta por IP y por ruta.
+        RateLimiter::for('cuentas', fn (Request $request) => Limit::perMinute(config('limites.cuentas'))
+            ->by($request->ip().'|'.$request->path())->response($demasiadas));
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\LimiteTemprano;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Primer filtro de toda petición: límite por IP y por token, antes de tocar la base de datos.
+        $middleware->prepend(LimiteTemprano::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
