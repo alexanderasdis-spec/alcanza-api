@@ -20,6 +20,10 @@ class AbonoService
     /**
      * Registra un abono y actualiza el estado de la meta.
      *
+     * La meta de la respuesta trae el total ahorrado, el progreso y el estado, pero no la lista
+     * de abonos: el frontend ya la tiene y le suma el abono nuevo. La prueba de carga mostró
+     * que devolver la lista completa hacía cada abono más lento que el anterior.
+     *
      * @param  array{monto: float, fecha?: string}  $datos  Datos ya validados por AbonoStoreRequest.
      * @return array{abono: Abono, meta: Meta}
      */
@@ -31,6 +35,7 @@ class AbonoService
         $abono = $this->abonoRepository->create($meta, $datos);
         $meta = $this->metaService->revisarEstado($meta);
 
-        return ['abono' => $abono, 'meta' => $this->metaService->mostrar($meta)];
+        // revisarEstado ya cargó la suma de los abonos, que es lo que usan ahorrado y progreso.
+        return ['abono' => $abono, 'meta' => $meta];
     }
 }

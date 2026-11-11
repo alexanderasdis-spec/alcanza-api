@@ -19,6 +19,8 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
+            # OPcache: encontrado con la prueba de carga (k6); acelera cada petición.
+            - './docker/php/opcache.ini:/etc/php/8.5/cli/conf.d/99-opcache.ini:ro'
         networks:
             - sail
         depends_on:

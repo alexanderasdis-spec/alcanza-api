@@ -127,6 +127,35 @@ Resultado actual: 37 peticiones y 72 comprobaciones, 0 fallidas. La colección c
 
 En Postman: **Import** → los dos archivos de `postman/` → elegir el entorno "alcanza-api local" → **Run collection**.
 
+### Prueba de carga (k6)
+
+`pruebas/carga/estres.js` sube de 1 a 50 usuarios virtuales en 2 minutos. Cada uno lista las metas, consulta el perfil y registra un abono cada segundo. La meta es que el 95 % de las peticiones tarde menos de 0,8 s y que fallen menos del 1 %.
+
+```bash
+docker run --rm --network alcanza-api_sail -v "$(pwd)/pruebas/carga:/scripts" grafana/k6:0.54.0 run /scripts/estres.js
+```
+
+Para medir una cantidad fija de usuarios durante 40 segundos, agrega `-e VUS=25` antes de `grafana/k6`. La prueba crea un usuario `estres-…@alcanza.test` con muchos abonos, que conviene borrar al terminar.
+
+Resultados del 10 de noviembre de 2026, en un computador de 4 núcleos con `php artisan serve`:
+
+| Medición | Antes | Después de corregir |
+|---|---|---|
+| Peticiones fallidas | 0 % | 0 % |
+| 95 % de las peticiones, con 1 a 50 usuarios | 4,12 s | 2,61 s |
+| Peticiones por segundo | 16,5 | 22,3 |
+| `GET /metas` sola, con 673 abonos | 0,31 s y 98 KB | 0,15 s y 32 KB |
+
+Con usuarios fijos: 10 usuarios, 0,26 s (cumple); 25 usuarios, 0,80 s (en el límite); 50 usuarios, 2,07 s (no cumple). Con 50 usuarios, PHP usa cerca del 330 % de los 400 % de CPU: el límite es el servidor de desarrollo, no la base de datos.
+
+Correcciones hechas:
+
+1. La lista de metas pide solo `id`, `monto` y `fecha` de cada abono (`MetaRepository`).
+2. Registrar un abono ya no devuelve la lista completa de abonos (`AbonoService`); el frontend le suma el nuevo.
+3. OPcache activo en el contenedor (`docker/php/opcache.ini`, montado en `compose.yaml`).
+
+Al desplegar conviene usar `APP_DEBUG=false` con `php artisan optimize`, que guarda la configuración y las rutas en caché. Con eso, 50 usuarios bajaron a 1,64 s y 36 peticiones por segundo. Para más carga hace falta un servidor de producción (Nginx con PHP-FPM, o Laravel Octane) en lugar de `php artisan serve`.
+
 ## Comandos útiles
 
 | Comando | Qué hace |

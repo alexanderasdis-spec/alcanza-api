@@ -490,7 +490,8 @@
             "const { meta } = pm.response.json();",
             "pm.test('La meta llega al 100 %', () => pm.expect(meta.progreso).to.eql(100));",
             "pm.test('Pasa a cumplida (el frontend lanza el confeti)', () => pm.expect(meta.estado).to.eql('cumplida'));",
-            "pm.test('Trae los dos abonos', () => pm.expect(meta.abonos).to.have.length(2));"
+            "pm.test('Lo ahorrado es la suma de los dos abonos', () => pm.expect(meta.ahorrado).to.eql(meta.precio_final));",
+            "pm.test('No repite la lista de abonos (más liviano)', () => pm.expect(meta).to.not.have.property('abonos'));"
           ] } }],
           "request": {
             "method": "POST",
