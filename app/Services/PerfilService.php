@@ -6,7 +6,7 @@ use App\Models\Perfil;
 use App\Models\User;
 use App\Repositories\Contracts\PerfilRepositoryInterface;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Lógica del perfil. Cada usuario tiene un solo perfil:
@@ -44,7 +44,8 @@ class PerfilService
     }
 
     /**
-     * Guarda una foto nueva y borra la anterior para no acumular archivos.
+     * Guarda una foto nueva dentro de la base de datos, reemplazando la anterior.
+     * La clave nueva cambia la dirección, así el navegador no muestra la foto vieja de su caché.
      *
      * @return Perfil|null null si el usuario todavía no tiene perfil.
      */
@@ -56,15 +57,15 @@ class PerfilService
             return null;
         }
 
-        $anterior = $perfil->foto;
-        $perfil = $this->perfilRepository->update($perfil, ['foto' => $archivo->store('fotos', 'public')]);
-        $this->borrarArchivo($anterior);
-
-        return $perfil;
+        return $this->perfilRepository->update($perfil, [
+            'foto_datos' => $archivo->get(),
+            'foto_tipo' => $archivo->getMimeType(),
+            'foto_clave' => (string) Str::uuid(),
+        ]);
     }
 
     /**
-     * Quita la foto del perfil y borra el archivo.
+     * Quita la foto del perfil.
      *
      * @return Perfil|null null si el usuario todavía no tiene perfil.
      */
@@ -76,20 +77,16 @@ class PerfilService
             return null;
         }
 
-        $anterior = $perfil->foto;
-        $perfil = $this->perfilRepository->update($perfil, ['foto' => null]);
-        $this->borrarArchivo($anterior);
-
-        return $perfil;
+        return $this->perfilRepository->update($perfil, ['foto_datos' => null, 'foto_tipo' => null, 'foto_clave' => null]);
     }
 
     /**
-     * Borra un archivo del disco "public", si hay alguno.
+     * Busca la foto por su clave pública, para mostrarla.
+     *
+     * @return Perfil|null null si no hay ninguna foto con esa clave.
      */
-    private function borrarArchivo(?string $ruta): void
+    public function fotoPorClave(string $clave): ?Perfil
     {
-        if ($ruta !== null) {
-            Storage::disk('public')->delete($ruta);
-        }
+        return $this->perfilRepository->porClaveDeFoto($clave);
     }
 }

@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 /**
  * Endpoints del perfil del usuario que inició sesión: GET y POST /api/perfil,
- * y POST y DELETE /api/perfil/foto.
+ * POST y DELETE /api/perfil/foto, y GET /api/fotos/{clave} para mostrar una foto.
  */
 class PerfilController extends Controller
 {
@@ -60,6 +60,24 @@ class PerfilController extends Controller
     public function eliminarFoto(Request $request)
     {
         return $this->respuestaFoto($this->perfilService->quitarFoto($request->user()));
+    }
+
+    /**
+     * Muestra una foto de perfil - METHOD GET (pública, para usarla en una etiqueta <img>)
+     * La clave es un código al azar que cambia con cada foto: por eso se puede guardar en caché un año.
+     */
+    public function verFoto(string $clave)
+    {
+        $perfil = $this->perfilService->fotoPorClave($clave);
+
+        if ($perfil === null || $perfil->foto_datos === null) {
+            return response()->json(['message' => 'Esa foto no existe.'], 404);
+        }
+
+        return response($perfil->foto_datos, 200, [
+            'Content-Type' => $perfil->foto_tipo,
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
     }
 
     /**

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Primer filtro de toda petición: límite por IP y por token, antes de tocar la base de datos.
         $middleware->prepend(LimiteTemprano::class);
+
+        // En internet la petición pasa por el intermediario del hosting, que atiende el HTTPS.
+        // Confiar en él hace que Laravel arme las direcciones con https (por ejemplo foto_url).
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

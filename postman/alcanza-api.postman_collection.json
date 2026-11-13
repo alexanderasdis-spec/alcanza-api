@@ -13,6 +13,7 @@
     { "key": "token_otro", "value": "" },
     { "key": "email", "value": "" },
     { "key": "meta_id", "value": "" },
+    { "key": "foto_clave", "value": "" },
     { "key": "turnstile", "value": "XXXX.DUMMY.TOKEN.XXXX", "description": "Código de prueba de Cloudflare: lo aceptan las claves secretas de prueba" }
   ],
   "item": [
@@ -286,14 +287,28 @@
           "name": "Subir foto (POST /api/perfil/foto) → 200",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-            "pm.test('Entrega la dirección pública', () => pm.expect(pm.response.json().foto_url).to.include('/storage/fotos/'));",
-            "pm.test('No expone la ruta interna', () => pm.expect(pm.response.json()).to.not.have.property('foto'));"
+            "pm.test('Entrega la dirección pública', () => pm.expect(pm.response.json().foto_url).to.include('/api/fotos/'));",
+            "pm.test('No manda la imagen dentro del JSON', () => pm.expect(pm.response.json()).to.not.have.property('foto_datos'));",
+            "pm.collectionVariables.set('foto_clave', pm.response.json().foto_url.split('/').pop());"
           ] } }],
           "request": {
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "body": { "mode": "formdata", "formdata": [{ "key": "foto", "type": "file", "src": "foto-prueba.png" }] },
             "url": { "raw": "{{base_url}}/perfil/foto", "host": ["{{base_url}}"], "path": ["perfil", "foto"] }
+          }
+        },
+        {
+          "name": "Ver la foto sin token (GET /api/fotos/{clave}) → 200",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('Es una imagen', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image/'));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/fotos/{{foto_clave}}", "host": ["{{base_url}}"], "path": ["fotos", "{{foto_clave}}"] }
           }
         },
         {
@@ -306,6 +321,18 @@
             "method": "DELETE",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/perfil/foto", "host": ["{{base_url}}"], "path": ["perfil", "foto"] }
+          }
+        },
+        {
+          "name": "La foto quitada ya no se ve → 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Responde 404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/fotos/{{foto_clave}}", "host": ["{{base_url}}"], "path": ["fotos", "{{foto_clave}}"] }
           }
         }
       ]

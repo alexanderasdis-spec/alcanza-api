@@ -27,4 +27,10 @@ class PerfilRepository implements PerfilRepositoryInterface
 
         return $perfil;
     }
+
+    public function porClaveDeFoto(string $clave): ?Perfil
+    {
+        // Solo las columnas de la foto: no hace falta traer el resto del perfil.
+        return Perfil::query()->select(['id', 'foto_datos', 'foto_tipo', 'foto_clave'])->where('foto_clave', $clave)->first();
+    }
 }

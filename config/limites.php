@@ -28,4 +28,8 @@ return [
     // Con varios servidores se usaría "redis", para que todos compartan los contadores.
     'almacen' => env('LIMITE_ALMACEN', 'file'),
 
+    // En internet: encabezado donde el hosting deja la IP real del visitante (por ejemplo
+    // CF-Connecting-IP detrás de Cloudflare). Vacío en desarrollo, donde no hay intermediario.
+    'cabecera_ip' => env('LIMITE_CABECERA_IP'),
+
 ];

@@ -46,4 +46,9 @@ Route::group([], function () {
             Route::post('metas/{meta}/abonos', [AbonosController::class, 'store']);
         });
     });
+
+    // ── Ruta pública: fotos de perfil ────────────────────────────────────────
+    // Sin token, porque el navegador la pide desde una etiqueta <img>. La clave es un código
+    // al azar, así no se pueden recorrer las fotos de otros por número.
+    Route::get('fotos/{clave}', [PerfilController::class, 'verFoto'])->whereUuid('clave');
 });

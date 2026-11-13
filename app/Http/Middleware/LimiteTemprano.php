@@ -30,7 +30,7 @@ class LimiteTemprano
 
         $limitador = new RateLimiter(Cache::store(config('limites.almacen')));
 
-        $contadores = ['temprano:ip:'.$request->ip() => config('limites.por_ip')];
+        $contadores = ['temprano:ip:'.$this->ipDelCliente($request) => config('limites.por_ip')];
         if ($token = $request->bearerToken()) {
             $contadores['temprano:token:'.hash('xxh128', $token)] = config('limites.por_usuario');
         }
@@ -47,5 +47,21 @@ class LimiteTemprano
         }
 
         return $next($request);
+    }
+
+    /**
+     * IP de quien hace la petición.
+     *
+     * En internet, la petición llega a través del intermediario del hosting, y la IP directa es la
+     * de ese intermediario: todos los usuarios parecerían uno solo. Por eso, si se configura
+     * LIMITE_CABECERA_IP, se usa el encabezado donde el hosting deja la IP real del visitante.
+     * Debe ser un encabezado que el hosting reemplace siempre, para que nadie pueda inventarlo.
+     */
+    private function ipDelCliente(Request $request): string
+    {
+        $cabecera = config('limites.cabecera_ip');
+        $valor = $cabecera ? $request->header($cabecera) : null;
+
+        return $valor ? trim(explode(',', $valor)[0]) : (string) $request->ip();
     }
 }
