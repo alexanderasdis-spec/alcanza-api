@@ -44,9 +44,10 @@ La unión entre cada contrato y su repositorio está en `app/Providers/AppServic
 | Hecho | Pendiente |
 |---|---|
 | Cuentas con Sanctum, recuperación de contraseña y cambio de contraseña | Subir el repositorio a GitHub |
-| Perfil con foto, metas y abonos con progreso calculado | Desplegar gratis (Laravel y MySQL en la nube) |
+| Perfil con foto (guardada en la base de datos), metas y abonos | Publicar en Render con la base en TiDB Cloud |
 | Turnstile y límites de peticiones | Claves reales de Turnstile y Cloudflare frente al sitio |
-| Postman (37 peticiones, 74 comprobaciones) y k6 (carga y ataque) | Guardar las fotos y enviar correos con servicios externos |
+| Postman (39 peticiones, 77 comprobaciones) y k6 (carga y ataque) | Correo real con Brevo |
+| Imagen de producción (`Dockerfile`) probada con Postman | |
 
 ## Instalación
 
@@ -58,7 +59,6 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
-./vendor/bin/sail artisan storage:link
 ```
 
 - La API queda en `http://localhost/api`.
@@ -104,6 +104,7 @@ Registro, login y olvidé contraseña exigen además el campo `turnstile`: el c�
 | POST | `/perfil` | Crea o actualiza el perfil (201 o 200) |
 | POST | `/perfil/foto` | Sube o reemplaza la foto de perfil (`multipart/form-data`) |
 | DELETE | `/perfil/foto` | Quita la foto de perfil |
+| GET | `/fotos/{clave}` | Muestra una foto (pública, sin token, para usarla en `<img>`) |
 | GET | `/metas` | Lista las metas con su progreso y sus abonos |
 | POST | `/metas` | Crea una meta |
 | GET | `/metas/{id}` | Muestra una meta con sus abonos |
@@ -163,7 +164,7 @@ La colección está en `postman/`. Para correrla toda con Newman, con Sail encen
 docker run --rm --network alcanza-api_sail -v "$(pwd)/postman:/etc/newman" postman/newman:alpine run alcanza-api.postman_collection.json -e alcanza-api-local.postman_environment.json --env-var host=http://laravel.test
 ```
 
-Resultado actual: 37 peticiones y 74 comprobaciones, 0 fallidas. La colección crea usuarios con correos `@alcanza.test`, que se pueden borrar después. Envía como `turnstile` el código de prueba de Cloudflare (`XXXX.DUMMY.TOKEN.XXXX`), que solo aceptan las claves de prueba.
+Resultado actual: 39 peticiones y 77 comprobaciones, 0 fallidas, en local y contra la imagen de producción. La colección crea usuarios con correos `@alcanza.test`, que se pueden borrar después. Envía como `turnstile` el código de prueba de Cloudflare (`XXXX.DUMMY.TOKEN.XXXX`), que solo aceptan las claves de prueba.
 
 En Postman: **Import** → los dos archivos de `postman/` → elegir el entorno "alcanza-api local" → **Run collection**.
 
@@ -195,6 +196,33 @@ Correcciones hechas:
 3. OPcache activo en el contenedor (`docker/php/opcache.ini`, montado en `compose.yaml`).
 
 Al desplegar conviene usar `APP_DEBUG=false` con `php artisan optimize`, que guarda la configuración y las rutas en caché. Con eso, 50 usuarios bajaron a 1,64 s y 36 peticiones por segundo. Para más carga hace falta un servidor de producción (Nginx con PHP-FPM, o Laravel Octane) en lugar de `php artisan serve`.
+
+## Publicar en internet
+
+El `Dockerfile` arma la imagen de producción: PHP 8.4 con Apache y OPcache, sin dependencias de desarrollo. Al arrancar, `docker/produccion/iniciar.sh` usa el puerto que indica el hosting (`PORT`), ejecuta `php artisan optimize` y `php artisan migrate --force`.
+
+Para probarla en local, contra la base de Sail:
+
+```bash
+docker build -t alcanza-api-produccion .
+docker run --rm --network alcanza-api_sail -e PORT=10000 -e APP_KEY=... -e DB_HOST=mysql -e DB_DATABASE=data_alcanza -e DB_USERNAME=sail -e DB_PASSWORD=... alcanza-api-produccion
+```
+
+Variables que hay que poner en el hosting:
+
+| Variable | Valor |
+|---|---|
+| `APP_KEY` | Generada con `php artisan key:generate --show` |
+| `APP_ENV=production`, `APP_DEBUG=false` | Modo producción |
+| `APP_URL` | Dirección pública de la API |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Datos de la base en la nube |
+| `FRONTEND_URLS`, `FRONTEND_URL` | Dirección pública del frontend |
+| `MAIL_*` | Servidor de correo real (Brevo) |
+| `TURNSTILE_SECRET_KEY` | Clave secreta real de Turnstile |
+| `LIMITE_CABECERA_IP` | Encabezado con la IP real del visitante, según el hosting |
+| `LOG_CHANNEL=stderr` | Para ver los errores en el panel del hosting |
+
+Plan elegido (planes gratuitos revisados en noviembre de 2026): **Render** para la API, **TiDB Cloud Starter** para la base (compatible con MySQL; Aiven dejó de crear MySQL gratis el 6 de noviembre de 2026), **Cloudflare Pages** para React y **Brevo** para el correo. Las fotos se guardan en la base de datos porque el disco de Render se borra en cada reinicio.
 
 ## Comandos útiles
 
