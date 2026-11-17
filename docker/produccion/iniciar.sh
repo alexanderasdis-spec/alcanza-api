@@ -7,6 +7,11 @@ PUERTO="${PORT:-8080}"
 sed -i "s/^Listen .*/Listen ${PUERTO}/" /etc/apache2/ports.conf
 sed -i "s/<VirtualHost \*:[0-9]*>/<VirtualHost *:${PUERTO}>/" /etc/apache2/sites-available/000-default.conf
 
+# Apache solo puede cargar un modo de trabajo (MPM). Algunos hostings (Railway) arrancan con
+# más de uno y Apache se cierra; se dejan solo los archivos de mpm_prefork, el que necesita PHP.
+rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
+a2enmod mpm_prefork >/dev/null
+
 # Clave de la aplicación: si el hosting no la da, se arma a partir de APP_SEMILLA, un texto al azar
 # que Render genera una vez y guarda. Así la clave es siempre la misma y nunca se sube a Git.
 if [ -z "$APP_KEY" ] && [ -n "$APP_SEMILLA" ]; then
