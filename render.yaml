@@ -1,0 +1,62 @@
+# Blueprint de Render: publica la API de Alcanza con el Dockerfile de este repositorio.
+# Render lee este archivo al crear el Blueprint ("New > Blueprint") y pide los valores marcados
+# con sync: false (las claves secretas no se guardan en Git).
+services:
+  - type: web
+    name: alcanza-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: Alcanza
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_LOCALE
+        value: es
+      # Texto al azar que Render genera una vez; iniciar.sh arma con él la APP_KEY.
+      - key: APP_SEMILLA
+        generateValue: true
+      - key: APP_URL
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+      # Base de datos (TiDB Cloud, compatible con MySQL). Los datos los copias del panel de TiDB.
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_DATABASE
+        value: data_alcanza
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # TiDB exige conexión cifrada: se usan los certificados que trae la imagen.
+      - key: MYSQL_ATTR_SSL_CA
+        value: /etc/ssl/certs/ca-certificates.crt
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      # Por ahora los correos se escriben en el registro; luego se conecta Brevo.
+      - key: MAIL_MAILER
+        value: log
+      # Dirección del frontend publicado (para CORS y los enlaces de los correos).
+      - key: FRONTEND_URLS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      # Clave de prueba de Turnstile: siempre aprueba. Cambiarla por la real más adelante.
+      - key: TURNSTILE_SECRET_KEY
+        value: 1x0000000000000000000000000000000AA
